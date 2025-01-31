@@ -1,0 +1,11 @@
+(executable
+ (public_name sabacc)
+ (name main)
+ (preprocess
+  (pps ppx_deriving.show))
+ (libraries sabacc))
+
+(env
+ (dev
+  (flags
+   (:standard -w -27 -w -32 -w -33 -w -34 -w -37 -w -69))))

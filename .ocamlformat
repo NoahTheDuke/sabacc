@@ -1,0 +1,7 @@
+profile = default
+version = 0.27.0
+
+break-cases = all
+margin = 88
+module-item-spacing = sparse
+type-decl = sparse
