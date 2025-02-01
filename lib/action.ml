@@ -6,9 +6,14 @@ open Card
 open Location
 open Suite
 
+type choose_location =
+  | Drawn
+  | Hand
+[@@deriving show]
+
 type 'variant action_type =
   | Draw : Suite.t * Location.t -> [> `Draw ] action_type
-  | ChooseDrawn : Location.t -> [> `ChooseDrawn ] action_type
+  | ChooseDrawn : choose_location -> [> `ChooseDrawn ] action_type
   | Stand : [> `Stand ] action_type
   | Shift : [> `Shift ] action_type
 
@@ -16,7 +21,8 @@ let show_action_type a_t =
   match a_t with
   | Draw (suite, location) ->
       Printf.sprintf "`Draw (%s, %s)" (Suite.show suite) (Location.show location)
-  | ChooseDrawn location -> Printf.sprintf "`ChooseDrawn %s" (Location.show location)
+  | ChooseDrawn Drawn -> "`ChooseDrawn drawn"
+  | ChooseDrawn Hand -> "`ChooseDrawn hand"
   | Stand -> "`Stand"
   | Shift -> "`Shift"
 
@@ -24,8 +30,8 @@ let pp_action_type ppf a_t =
   match a_t with
   | Draw (suite, location) ->
       Format.fprintf ppf "`Draw (%s, %s)" (Suite.show suite) (Location.show location)
-  | ChooseDrawn location ->
-      Format.fprintf ppf "`ChooseDrawn %s" (Location.show location)
+  | ChooseDrawn Drawn -> Format.fprintf ppf "`ChooseDrawn drawn"
+  | ChooseDrawn Hand -> Format.fprintf ppf "`ChooseDrawn hand"
   | Stand -> Format.fprintf ppf "%s" "`Stand"
   | Shift -> Format.fprintf ppf "%s" "`Shift"
 

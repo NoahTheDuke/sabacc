@@ -4,12 +4,13 @@
 
 open Sabacc.Game
 
-let options =
-  { players = [ "noah"; "may"; "lavender"; "asterius" ]; starting_chips = 6 }
+let () =
+  let options =
+    { players = [ "noah"; "may"; "lavender"; "asterius" ]; starting_chips = 6 } in
+  let game = Game.create options in
+  game.running <- true;
+  Game.game_loop game
 
-let game = Game.create options
-let () = Game.display game
-
-let game = game |> Game.handle_action { a_type = Draw (Red, Deck); player = "noah" }
-
+(*let game = game |> Game.handle_action { a_type = Draw (Red, Deck); player = "noah" }*)
+(**)
 (*let () = Game.display game*)

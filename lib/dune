@@ -3,8 +3,11 @@
  (preprocess
   (pps ppx_deriving.show ppx_deriving.eq))
  (libraries
-   unix
-   pvec))
+   ; external
+   lwt
+   lwt.unix
+   pvec
+   unix))
 
 (env
  (dev

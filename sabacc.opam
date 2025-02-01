@@ -12,6 +12,7 @@ bug-reports: "https://github.com/noahtheduke/sabacc/issues"
 depends: [
   "dune" {>= "3.16"}
   "ocaml"
+  "pvec"
   "odoc" {with-doc}
 ]
 build: [

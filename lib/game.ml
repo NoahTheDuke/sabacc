@@ -2,6 +2,7 @@
    License, v. 2.0. If a copy of the MPL was not distributed with this
    file, You can obtain one at https://mozilla.org/MPL/2.0/. *)
 
+(* internal *)
 open Action
 open Card
 open Deck
@@ -10,6 +11,9 @@ open Location
 open Player
 open Suite
 open Utils
+
+(* external *)
+open Lwt.Infix
 
 type new_game_options = {
   starting_chips : int;
@@ -28,6 +32,7 @@ type game_step =
 
 module Game = struct
   type t = {
+    mutable running : bool;
     red : Deck.t;
     yellow : Deck.t;
     starting_chips : int;
@@ -80,6 +85,7 @@ module Game = struct
         (red_deck, yellow, []) options.players
     in
     {
+      running = false;
       red = red_deck;
       yellow;
       starting_chips = options.starting_chips;
@@ -123,7 +129,6 @@ module Game = struct
       | ChooseDrawn Hand ->
           let player = { player with drawn = None } in
           (discard drawn game, player)
-      | ChooseDrawn location -> raise (WrongLocation "wtf")
     in
     game |> update_player player
 
@@ -171,6 +176,26 @@ module Game = struct
     | _, ({ a_type = Stand; _ } as action) -> stand action game
     | _, ({ a_type = Shift; _ } as action) -> shift action game
 
+  let show_action_type a_t (game : t) : string =
+    match a_t with
+    | Draw (suite, Discard) ->
+        Printf.sprintf "Draw from %s discard: %s" (Suite.show suite)
+          ( game |> suite_to_deck suite |> Deck.available |> fun c ->
+            match c with
+            | Some c -> Card.show c
+            | None -> "[Empty]" )
+    | Draw (suite, location) -> Printf.sprintf "Draw from %s deck" (Suite.show suite)
+    | ChooseDrawn Drawn ->
+        let player = get_current_player game in
+        let drawn = Option.get player.drawn in
+        Printf.sprintf "Choose %s from discard" (Card.show drawn)
+    | ChooseDrawn Hand ->
+        let player = get_current_player game in
+        let card = Hand.by_suite (Option.get player.drawn).suite player.hand in
+        Printf.sprintf "Choose %s from hand" (Card.show card)
+    | Stand -> "Stand"
+    | Shift -> "Use shift token"
+
   let display (game : t) : unit =
     Printf.printf "Turn: %i, Round: %i, Current player: %s\n" game.turn game.round
       (Array.get game.players.turn_order game.starting_player);
@@ -186,7 +211,7 @@ module Game = struct
         Printf.printf "  %s - Chips: %i, Invested: %i\n" player.name player.chips
           player.invested_chips)
       game.players.turn_order;
-    print_endline "Your hand (noah):";
+    Printf.printf "Your hand (%s):" game.current_player;
     let primary =
       StringMap.find (Array.get game.players.turn_order 0) game.players.pm
     in
@@ -194,8 +219,24 @@ module Game = struct
     (match primary.drawn with
     | Some card -> Printf.printf "  Drawn: %s\n" (Card.show card)
     | None -> ());
-    Printf.printf "Available actions:\n  %s"
-      (available_actions game |> List.map show_action_type |> String.concat ", ");
+    Printf.printf "Available actions:\n%s"
+      (available_actions game
+      |> List.mapi (fun i a -> Printf.sprintf "  %i) %s" i (show_action_type a game))
+      |> String.concat "\n");
     print_newline ();
     flush stdout
+
+  let handle_input (game : t) =
+    let actions = available_actions game in
+    let choice = read_int () in
+    let a_type = List.nth actions choice in
+    game |> handle_action { a_type; player = game.current_player }
+
+  let rec game_loop (game : t) =
+    match game.running with
+    | true ->
+        display game;
+        let game = handle_input game in
+        game_loop game
+    | false -> ()
 end

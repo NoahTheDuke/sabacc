@@ -78,10 +78,12 @@ module Deck = struct
 
   let length (deck : t) = List.length deck.deck_pile
 
-  let available (deck : t) : Card.t = List.hd deck.discard_pile
+  let available (deck : t) : Card.t option = List.nth_opt deck.discard_pile 0
 
   let display (deck : t) =
     let suite = Suite.show deck.suite in
     Printf.printf "  %s deck: %i cards remaining, discard: %s" suite (length deck)
-      (deck |> available |> Card.show)
+      (match available deck with
+      | Some c -> Card.show c
+      | None -> "[Empty]")
 end
