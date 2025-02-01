@@ -9,19 +9,19 @@ module Player = struct
   type status =
     | In
     | Standing
-  [@@deriving show]
+  [@@deriving show, eq]
 
   type t = {
     name : string;
     drawn : card option;
-    hand : hand;
+    hand : Hand.t;
     chips : int;
     invested_chips : int;
     status : status;
   }
-  [@@deriving show]
+  [@@deriving show, eq]
 
-  let create (name : string) (hand : hand) (chips : int) : t =
+  let create (name : string) (hand : Hand.t) (chips : int) : t =
     { name; drawn = None; hand; chips; invested_chips = 0; status = In }
 end
 

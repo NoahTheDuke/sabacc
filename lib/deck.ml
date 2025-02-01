@@ -20,13 +20,13 @@ let knuth_shuffle a =
 
 module Deck = struct
   type t = {
-    suite : suite;
+    suite : Suite.t;
     deck_pile : card list;
     discard_pile : card list;
   }
-  [@@deriving show]
+  [@@deriving show, eq]
 
-  let create (suite : suite) : t =
+  let create (suite : Suite.t) : t =
     let deck =
       knuth_shuffle
         [|
@@ -54,35 +54,34 @@ module Deck = struct
           { suite; rank = Sylop };
         |]
     in
-    { suite; deck_pile = Array.to_list deck; discard_pile = [] }
+    let discard = deck.(0) in
+    { suite; deck_pile = deck |> Array.to_list |> List.tl; discard_pile = [ discard ] }
 
   exception Empty_pile of string
 
-  let draw (location : location) (deck : t) =
+  exception DrawDrawn of string
+
+  let draw (location : Location.t) (deck : t) =
     match location with
     | Deck -> (
         match deck.deck_pile with
-        | [] -> raise (Empty_pile ("Empty " ^ show_suite deck.suite ^ " deck"))
+        | [] -> raise (Empty_pile ("Empty " ^ Suite.show deck.suite ^ " deck"))
         | c :: d -> ({ deck with deck_pile = d }, c))
     | Discard -> (
         match deck.discard_pile with
-        | [] -> raise (Empty_pile ("Empty " ^ show_suite deck.suite ^ " discard"))
+        | [] -> raise (Empty_pile ("Empty " ^ Suite.show deck.suite ^ " discard"))
         | c :: d -> ({ deck with discard_pile = d }, c))
+    | l -> raise (DrawDrawn (Printf.sprintf "Can't draw from %s" (Location.show l)))
 
-  let discard (card : card) (deck : t) : t =
+  let update_discard (card : card) (deck : t) : t =
     { deck with discard_pile = card :: deck.discard_pile }
 
   let length (deck : t) = List.length deck.deck_pile
 
-  let available (deck : t) : card option =
-    match deck.discard_pile with
-    | [] -> None
-    | x :: xs -> Some x
+  let available (deck : t) : card = List.hd deck.discard_pile
 
   let display (deck : t) =
-    let suite = show_suite deck.suite in
+    let suite = Suite.show deck.suite in
     Printf.printf "  %s deck: %i cards remaining, discard: %s" suite (length deck)
-      (match available deck with
-      | None -> "[Empty]"
-      | Some c -> Printf.sprintf "%s" (show_card c))
+      (deck |> available |> show_card)
 end

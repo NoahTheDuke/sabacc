@@ -3,15 +3,24 @@
    file, You can obtain one at https://mozilla.org/MPL/2.0/. *)
 
 open Card
+open Suite
 
-type hand = {
-  red : card;
-  yellow : card;
-}
+module Hand = struct
+  type t = {
+    red : card;
+    yellow : card;
+  }
+  [@@deriving eq]
 
-let show_hand (hand : hand) : string =
-  Printf.sprintf "%s, %s" (show_card hand.red) (show_card hand.yellow)
+  let show (hand : t) : string =
+    Printf.sprintf "%s, %s" (show_card hand.red) (show_card hand.yellow)
 
-let pp_hand ppf (hand : hand) =
-  Format.fprintf ppf "%s, %s" (show_card hand.red) (show_card hand.yellow);
-  ()
+  let pp ppf (hand : t) =
+    Format.fprintf ppf "%s, %s" (show_card hand.red) (show_card hand.yellow);
+    ()
+
+  let by_suite (suite : Suite.t) (hand : t) : card =
+    match suite with
+    | Red -> hand.red
+    | Yellow -> hand.yellow
+end

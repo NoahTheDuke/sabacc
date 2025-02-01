@@ -11,6 +11,7 @@ type rank =
   | Six
   | Imposter
   | Sylop
+[@@deriving eq]
 
 let show_rank = function
   | One -> "1"

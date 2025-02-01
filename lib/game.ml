@@ -6,6 +6,7 @@ open Action
 open Card
 open Deck
 open Hand
+open Location
 open Player
 open Suite
 
@@ -54,7 +55,7 @@ module Game = struct
     | Red -> { game with red = deck }
     | Yellow -> { game with yellow = deck }
 
-  let suite_to_deck (suite : suite) (game : t) : Deck.t =
+  let suite_to_deck (suite : Suite.t) (game : t) : Deck.t =
     match suite with
     | Red -> game.red
     | Yellow -> game.yellow
@@ -77,10 +78,6 @@ module Game = struct
           (red_deck, yellow, players @ [ player ]))
         (red_deck, yellow, []) options.players
     in
-    let red_deck, red_discard = Deck.draw Deck red_deck in
-    let red_deck = Deck.discard red_discard red_deck in
-    let yellow, yellow_discard = Deck.draw Deck yellow in
-    let yellow = Deck.discard yellow_discard yellow in
     {
       red = red_deck;
       yellow;
@@ -95,7 +92,7 @@ module Game = struct
 
   let discard (card : card) (game : t) : t =
     let deck = suite_to_deck card.suite game in
-    game |> update_deck (Deck.discard card deck)
+    game |> update_deck (Deck.update_discard card deck)
 
   let draw (action : [ `Draw ] action) (game : t) : t =
     let player = get_player action.player game in
@@ -105,21 +102,29 @@ module Game = struct
         let deck, new_card = Deck.draw location deck in
         game |> update_deck deck |> update_player { player with drawn = Some new_card }
 
+  exception WrongLocation of string
+
   let choose_drawn (action : [ `ChooseDrawn ] action) (game : t) : t =
     let player = get_player action.player game in
-    match action.a_type with
-    | ChooseDrawn card ->
-        let hand = player.hand in
-        let game, player =
-          match card.suite with
-          | Red ->
-              ( discard hand.red game,
-                { player with drawn = None; hand = { hand with red = card } } )
-          | Yellow ->
-              ( discard hand.yellow game,
-                { player with drawn = None; hand = { hand with red = hand.red } } )
-        in
-        game |> update_player player
+    let hand = player.hand in
+    let drawn = Option.get player.drawn in
+    let game, player =
+      match action.a_type with
+      | ChooseDrawn Drawn ->
+          let existing = (drawn |> fun c -> c.suite) |> fun s -> Hand.by_suite s hand in
+          let hand =
+            match drawn.suite with
+            | Red -> { hand with red = drawn }
+            | Yellow -> { hand with yellow = drawn }
+          in
+          let player = { player with drawn = None; hand } in
+          (discard existing game, player)
+      | ChooseDrawn Hand ->
+          let player = { player with drawn = None } in
+          (discard drawn game, player)
+      | ChooseDrawn location -> raise (WrongLocation "wtf")
+    in
+    game |> update_player player
 
   let stand (action : [ `Stand ] action) (game : t) : t =
     let player = get_player action.player game in
@@ -140,24 +145,30 @@ module Game = struct
   let available_actions (game : t) =
     let current_player = get_current_player game in
     match current_player.drawn with
-    | Some c ->
-        [
-          ChooseDrawn c;
-          ChooseDrawn (game |> suite_to_deck c.suite |> Deck.available |> Option.get);
-        ]
+    | Some _ -> [ ChooseDrawn Drawn; ChooseDrawn Hand ]
     | None ->
-        let actions = ref (Pvec.empty ()) in
-        (match Deck.available game.red with
-        | Some _ -> actions := Pvec.append (Draw (Red, Discard)) !actions
-        | None -> ());
-        actions := Pvec.append (Draw (Red, Deck)) !actions;
-        (match Deck.available game.red with
-        | Some _ -> actions := Pvec.append (Draw (Yellow, Discard)) !actions
-        | None -> ());
-        actions := Pvec.append (Draw (Yellow, Deck)) !actions;
-        actions := Pvec.append Stand !actions;
-        (*actions := Pvec.append Shift !actions;*)
-        Pvec.to_list !actions
+        [
+          Draw (Red, Discard);
+          Draw (Red, Deck);
+          Draw (Yellow, Discard);
+          Draw (Yellow, Deck);
+          Stand;
+          Shift;
+        ]
+
+  let verify_action action (game : t) : bool =
+    let actions = available_actions game in
+    if
+      List.exists
+        (fun a ->
+          match (a, action) with
+          | Draw (s1, l1), Draw (s2, l2) -> Suite.equal s1 s2 && Location.equal l1 l2
+          | Stand, Stand -> true
+          | Shift, Shift -> true
+          | _ -> false)
+        actions
+    then true
+    else false
 
   let display (game : t) : unit =
     Printf.printf "Turn: %i, Round: %i, Current player: %s\n" game.turn game.round
@@ -178,12 +189,12 @@ module Game = struct
     let primary =
       StringMap.find (Array.get game.players.turn_order 0) game.players.pm
     in
-    Printf.printf "  %s\n" (show_hand primary.hand);
+    Printf.printf "  %s\n" (Hand.show primary.hand);
     (match primary.drawn with
     | Some card -> Printf.printf "  Drawn: %s\n" (show_card card)
     | None -> ());
     Printf.printf "Available actions:\n  %s"
-      (String.concat ", " (List.map show_action_type (available_actions game)));
-    print_newline();
+      (available_actions game |> List.map show_action_type |> String.concat ", ");
+    print_newline ();
     flush stdout
 end

@@ -8,7 +8,8 @@ let options =
   { players = [ "noah"; "may"; "lavender"; "asterius" ]; starting_chips = 6 }
 
 let game = Game.create options
+let () = Game.display game
 
 let game = game |> Game.handle_action { a_type = Draw (Red, Deck); player = "noah" }
 
-let () = Game.display game
+(*let () = Game.display game*)

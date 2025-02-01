@@ -7,23 +7,25 @@ open Location
 open Suite
 
 type 'variant action_type =
-  | Draw : suite * location -> [> `Draw ] action_type
-  | ChooseDrawn : card -> [> `ChooseDrawn ] action_type
+  | Draw : Suite.t * Location.t -> [> `Draw ] action_type
+  | ChooseDrawn : Location.t -> [> `ChooseDrawn ] action_type
   | Stand : [> `Stand ] action_type
   | Shift : [> `Shift ] action_type
 
 let show_action_type a_t =
   match a_t with
-  | Draw (suite, location) -> Printf.sprintf "`Draw (%s, %s)" (show_suite suite) (show_location location)
-  | ChooseDrawn card -> Printf.sprintf "`ChooseDrawn %s" (show_card card)
+  | Draw (suite, location) ->
+      Printf.sprintf "`Draw (%s, %s)" (Suite.show suite) (Location.show location)
+  | ChooseDrawn location -> Printf.sprintf "`ChooseDrawn %s" (Location.show location)
   | Stand -> "`Stand"
   | Shift -> "`Shift"
 
 let pp_action_type ppf a_t =
   match a_t with
   | Draw (suite, location) ->
-      Format.fprintf ppf "`Draw (%s, %s)" (show_suite suite) (show_location location)
-  | ChooseDrawn card -> Format.fprintf ppf "`ChooseDrawn %s" (show_card card)
+      Format.fprintf ppf "`Draw (%s, %s)" (Suite.show suite) (Location.show location)
+  | ChooseDrawn location ->
+      Format.fprintf ppf "`ChooseDrawn %s" (Location.show location)
   | Stand -> Format.fprintf ppf "%s" "`Stand"
   | Shift -> Format.fprintf ppf "%s" "`Shift"
 
