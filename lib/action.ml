@@ -35,7 +35,7 @@ type 'variant action = {
 }
 
 let show_action action =
-  Printf.printf "{a_type: %s, player: \"%s\"}"
+  Printf.sprintf "{a_type: %s, player: \"%s\"}"
     (show_action_type action.a_type)
     action.player
 

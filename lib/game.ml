@@ -9,6 +9,7 @@ open Hand
 open Location
 open Player
 open Suite
+open Utils
 
 type new_game_options = {
   starting_chips : int;
@@ -132,13 +133,6 @@ module Game = struct
 
   let shift (action : [ `Shift ] action) (game : t) : t = game
 
-  let handle_action action (game : t) : t =
-    match action with
-    | { a_type = Draw _; _ } as action -> draw action game
-    | { a_type = ChooseDrawn _; _ } as action -> choose_drawn action game
-    | { a_type = Stand; _ } as action -> stand action game
-    | { a_type = Shift; _ } as action -> shift action game
-
   let get_current_player (game : t) : Player.t =
     StringMap.find game.current_player game.players.pm
 
@@ -156,19 +150,26 @@ module Game = struct
           Shift;
         ]
 
-  let verify_action action (game : t) : bool =
+  let verify_action (action : 'a action) (game : t) : bool =
     let actions = available_actions game in
-    if
-      List.exists
-        (fun a ->
-          match (a, action) with
-          | Draw (s1, l1), Draw (s2, l2) -> Suite.equal s1 s2 && Location.equal l1 l2
-          | Stand, Stand -> true
-          | Shift, Shift -> true
-          | _ -> false)
-        actions
-    then true
-    else false
+    List.exists
+      (fun a ->
+        match (a, action.a_type) with
+        | Draw (s1, l1), Draw (s2, l2) -> Suite.equal s1 s2 && Location.equal l1 l2
+        | Stand, Stand -> true
+        | Shift, Shift -> true
+        | _ -> false)
+      actions
+
+  let handle_action (action : 'a action) (game : t) : t =
+    match (verify_action action game, action) with
+    | false, _ ->
+        Printf.printf "Can't use %s now" (show_action action);
+        game
+    | _, ({ a_type = Draw _; _ } as action) -> draw action game
+    | _, ({ a_type = ChooseDrawn _; _ } as action) -> choose_drawn action game
+    | _, ({ a_type = Stand; _ } as action) -> stand action game
+    | _, ({ a_type = Shift; _ } as action) -> shift action game
 
   let display (game : t) : unit =
     Printf.printf "Turn: %i, Round: %i, Current player: %s\n" game.turn game.round
