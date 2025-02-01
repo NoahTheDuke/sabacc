@@ -8,14 +8,14 @@ open Suite
 module Card = struct
   type t = {
     suite : Suite.t;
-    rank : rank;
+    rank : Rank.t;
   }
   [@@deriving eq]
 
   let show (card : t) : string =
-    Printf.sprintf "%s of %s" (show_rank card.rank) (Suite.show card.suite)
+    Printf.sprintf "%s of %s" (Rank.show card.rank) (Suite.show card.suite)
 
   let pp ppf (card : t) =
-    Format.fprintf ppf "%s of %s" (show_rank card.rank) (Suite.show card.suite);
+    Format.fprintf ppf "%s of %s" (Rank.show card.rank) (Suite.show card.suite);
     ()
 end

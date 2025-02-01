@@ -27,7 +27,7 @@ module Deck = struct
   [@@deriving show, eq]
 
   let create (suite : Suite.t) : t =
-    let deck =
+    let deck : Card.t array =
       knuth_shuffle
         [|
           { suite; Card.rank = One };
