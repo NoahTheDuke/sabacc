@@ -41,31 +41,6 @@ module Game = struct
   let get_player (name : string) (game : t) : Player.t =
     StringMap.find name game.players.pm
 
-  let display (game : t) : unit =
-    Printf.printf "Turn: %i, Round: %i, Current player: %s\n" game.turn game.round
-      (Array.get game.players.turn_order game.starting_player);
-    print_endline "Decks:";
-    Deck.display game.red;
-    print_newline ();
-    Deck.display game.yellow;
-    print_newline ();
-    print_endline "Players:";
-    Array.iter
-      (fun name ->
-        let player = get_player name game in
-        Printf.printf "  %s - Chips: %i, Invested: %i\n" player.name player.chips
-          player.invested_chips)
-      game.players.turn_order;
-    print_endline "Your hand (noah):";
-    let primary =
-      StringMap.find (Array.get game.players.turn_order 0) game.players.pm
-    in
-    Printf.printf "  %s\n" (show_hand primary.hand);
-    (match primary.drawn with
-    | Some card -> Printf.printf "  Drawn: %s\n" (show_card card)
-    | None -> ());
-    flush stdout
-
   let update_player (player : Player.t) (game : t) : t =
     let pm = StringMap.add player.name player game.players.pm in
     let players = { game.players with pm } in
@@ -84,42 +59,41 @@ module Game = struct
     | Red -> game.red
     | Yellow -> game.yellow
 
-  let rec create (options : new_game_options) : t =
+  let create (options : new_game_options) : t =
     assert (List.length options.players > 0);
     assert (List.length options.players <= 4);
-    let red = Deck.create Red in
+    let red_deck = Deck.create Red in
     let yellow = Deck.create Yellow in
-    let red, yellow, players =
+    let red_deck, yellow, players =
       List.fold_left
-        (fun (red, yellow, players) player_name ->
-          let red, red_card = Deck.draw Deck red in
+        (fun (red_deck, yellow, players) player_name ->
+          let red_deck, red_card = Deck.draw Deck red_deck in
           let yellow, yellow_card = Deck.draw Deck yellow in
           let player =
             Player.create player_name
               { red = red_card; yellow = yellow_card }
               options.starting_chips
           in
-          (red, yellow, players @ [ player ]))
-        (red, yellow, []) options.players
+          (red_deck, yellow, players @ [ player ]))
+        (red_deck, yellow, []) options.players
     in
-    let red, red_discard = Deck.draw Deck red in
+    let red_deck, red_discard = Deck.draw Deck red_deck in
+    let red_deck = Deck.discard red_discard red_deck in
     let yellow, yellow_discard = Deck.draw Deck yellow in
-    let game =
-      {
-        red;
-        yellow;
-        starting_chips = options.starting_chips;
-        players = Players.create players;
-        round = 0;
-        turn = 0;
-        starting_player = 0;
-        current_player = List.hd options.players;
-        step = Setup;
-      }
-    in
-    game |> discard red_discard |> discard yellow_discard
+    let yellow = Deck.discard yellow_discard yellow in
+    {
+      red = red_deck;
+      yellow;
+      starting_chips = options.starting_chips;
+      players = Players.create players;
+      round = 0;
+      turn = 0;
+      starting_player = 0;
+      current_player = List.hd options.players;
+      step = Setup;
+    }
 
-  and discard (card : card) (game : t) : t =
+  let discard (card : card) (game : t) : t =
     let deck = suite_to_deck card.suite game in
     game |> update_deck (Deck.discard card deck)
 
@@ -163,7 +137,53 @@ module Game = struct
   let get_current_player (game : t) : Player.t =
     StringMap.find game.current_player game.players.pm
 
-  let available_actions (game : t) : string list =
-    let _current_player = get_current_player game in
-    [ "a" ]
+  let available_actions (game : t) =
+    let current_player = get_current_player game in
+    match current_player.drawn with
+    | Some c ->
+        [
+          ChooseDrawn c;
+          ChooseDrawn (game |> suite_to_deck c.suite |> Deck.available |> Option.get);
+        ]
+    | None ->
+        let actions = ref (Pvec.empty ()) in
+        (match Deck.available game.red with
+        | Some _ -> actions := Pvec.append (Draw (Red, Discard)) !actions
+        | None -> ());
+        actions := Pvec.append (Draw (Red, Deck)) !actions;
+        (match Deck.available game.red with
+        | Some _ -> actions := Pvec.append (Draw (Yellow, Discard)) !actions
+        | None -> ());
+        actions := Pvec.append (Draw (Yellow, Deck)) !actions;
+        actions := Pvec.append Stand !actions;
+        (*actions := Pvec.append Shift !actions;*)
+        Pvec.to_list !actions
+
+  let display (game : t) : unit =
+    Printf.printf "Turn: %i, Round: %i, Current player: %s\n" game.turn game.round
+      (Array.get game.players.turn_order game.starting_player);
+    print_endline "Decks:";
+    Deck.display game.red;
+    print_newline ();
+    Deck.display game.yellow;
+    print_newline ();
+    print_endline "Players:";
+    Array.iter
+      (fun name ->
+        let player = get_player name game in
+        Printf.printf "  %s - Chips: %i, Invested: %i\n" player.name player.chips
+          player.invested_chips)
+      game.players.turn_order;
+    print_endline "Your hand (noah):";
+    let primary =
+      StringMap.find (Array.get game.players.turn_order 0) game.players.pm
+    in
+    Printf.printf "  %s\n" (show_hand primary.hand);
+    (match primary.drawn with
+    | Some card -> Printf.printf "  Drawn: %s\n" (show_card card)
+    | None -> ());
+    Printf.printf "Available actions:\n  %s"
+      (String.concat ", " (List.map show_action_type (available_actions game)));
+    print_newline();
+    flush stdout
 end

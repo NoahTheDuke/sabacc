@@ -1,7 +1,9 @@
 (library
  (name sabacc)
  (preprocess
-  (pps ppx_deriving.show)))
+  (pps ppx_deriving.show))
+ (libraries
+   pvec))
 
 (env
  (dev

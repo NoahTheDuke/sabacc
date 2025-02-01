@@ -58,7 +58,6 @@ module Deck = struct
 
   exception Empty_pile of string
 
-  (** [draw deck location] returns the specified pile and the top card *)
   let draw (location : location) (deck : t) =
     match location with
     | Deck -> (

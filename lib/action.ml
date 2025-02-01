@@ -14,10 +14,10 @@ type 'variant action_type =
 
 let show_action_type a_t =
   match a_t with
-  | Draw (suite, location) -> ""
-  | ChooseDrawn card -> ""
-  | Stand -> ""
-  | Shift -> ""
+  | Draw (suite, location) -> Printf.sprintf "`Draw (%s, %s)" (show_suite suite) (show_location location)
+  | ChooseDrawn card -> Printf.sprintf "`ChooseDrawn %s" (show_card card)
+  | Stand -> "`Stand"
+  | Shift -> "`Shift"
 
 let pp_action_type ppf a_t =
   match a_t with
