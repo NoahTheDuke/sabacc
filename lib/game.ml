@@ -90,7 +90,7 @@ module Game = struct
       step = Setup;
     }
 
-  let discard (card : card) (game : t) : t =
+  let discard (card : Card.t) (game : t) : t =
     let deck = suite_to_deck card.suite game in
     game |> update_deck (Deck.update_discard card deck)
 
@@ -191,7 +191,7 @@ module Game = struct
     in
     Printf.printf "  %s\n" (Hand.show primary.hand);
     (match primary.drawn with
-    | Some card -> Printf.printf "  Drawn: %s\n" (show_card card)
+    | Some card -> Printf.printf "  Drawn: %s\n" (Card.show card)
     | None -> ());
     Printf.printf "Available actions:\n  %s"
       (available_actions game |> List.map show_action_type |> String.concat ", ");

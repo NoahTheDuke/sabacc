@@ -7,19 +7,19 @@ open Suite
 
 module Hand = struct
   type t = {
-    red : card;
-    yellow : card;
+    red : Card.t;
+    yellow : Card.t;
   }
   [@@deriving eq]
 
   let show (hand : t) : string =
-    Printf.sprintf "%s, %s" (show_card hand.red) (show_card hand.yellow)
+    Printf.sprintf "%s, %s" (Card.show hand.red) (Card.show hand.yellow)
 
   let pp ppf (hand : t) =
-    Format.fprintf ppf "%s, %s" (show_card hand.red) (show_card hand.yellow);
+    Format.fprintf ppf "%s, %s" (Card.show hand.red) (Card.show hand.yellow);
     ()
 
-  let by_suite (suite : Suite.t) (hand : t) : card =
+  let by_suite (suite : Suite.t) (hand : t) : Card.t =
     match suite with
     | Red -> hand.red
     | Yellow -> hand.yellow

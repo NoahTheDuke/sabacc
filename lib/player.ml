@@ -13,7 +13,7 @@ module Player = struct
 
   type t = {
     name : string;
-    drawn : card option;
+    drawn : Card.t option;
     hand : Hand.t;
     chips : int;
     invested_chips : int;

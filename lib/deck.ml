@@ -21,8 +21,8 @@ let knuth_shuffle a =
 module Deck = struct
   type t = {
     suite : Suite.t;
-    deck_pile : card list;
-    discard_pile : card list;
+    deck_pile : Card.t list;
+    discard_pile : Card.t list;
   }
   [@@deriving show, eq]
 
@@ -30,28 +30,28 @@ module Deck = struct
     let deck =
       knuth_shuffle
         [|
-          { suite; rank = One };
-          { suite; rank = One };
-          { suite; rank = One };
-          { suite; rank = Two };
-          { suite; rank = Two };
-          { suite; rank = Two };
-          { suite; rank = Three };
-          { suite; rank = Three };
-          { suite; rank = Three };
-          { suite; rank = Four };
-          { suite; rank = Four };
-          { suite; rank = Four };
-          { suite; rank = Five };
-          { suite; rank = Five };
-          { suite; rank = Five };
-          { suite; rank = Six };
-          { suite; rank = Six };
-          { suite; rank = Six };
-          { suite; rank = Imposter };
-          { suite; rank = Imposter };
-          { suite; rank = Imposter };
-          { suite; rank = Sylop };
+          { suite; Card.rank = One };
+          { suite; Card.rank = One };
+          { suite; Card.rank = One };
+          { suite; Card.rank = Two };
+          { suite; Card.rank = Two };
+          { suite; Card.rank = Two };
+          { suite; Card.rank = Three };
+          { suite; Card.rank = Three };
+          { suite; Card.rank = Three };
+          { suite; Card.rank = Four };
+          { suite; Card.rank = Four };
+          { suite; Card.rank = Four };
+          { suite; Card.rank = Five };
+          { suite; Card.rank = Five };
+          { suite; Card.rank = Five };
+          { suite; Card.rank = Six };
+          { suite; Card.rank = Six };
+          { suite; Card.rank = Six };
+          { suite; Card.rank = Imposter };
+          { suite; Card.rank = Imposter };
+          { suite; Card.rank = Imposter };
+          { suite; Card.rank = Sylop };
         |]
     in
     let discard = deck.(0) in
@@ -73,15 +73,15 @@ module Deck = struct
         | c :: d -> ({ deck with discard_pile = d }, c))
     | l -> raise (DrawDrawn (Printf.sprintf "Can't draw from %s" (Location.show l)))
 
-  let update_discard (card : card) (deck : t) : t =
+  let update_discard (card : Card.t) (deck : t) : t =
     { deck with discard_pile = card :: deck.discard_pile }
 
   let length (deck : t) = List.length deck.deck_pile
 
-  let available (deck : t) : card = List.hd deck.discard_pile
+  let available (deck : t) : Card.t = List.hd deck.discard_pile
 
   let display (deck : t) =
     let suite = Suite.show deck.suite in
     Printf.printf "  %s deck: %i cards remaining, discard: %s" suite (length deck)
-      (deck |> available |> show_card)
+      (deck |> available |> Card.show)
 end

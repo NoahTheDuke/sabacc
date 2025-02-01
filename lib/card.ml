@@ -5,15 +5,17 @@
 open Rank
 open Suite
 
-type card = {
-  suite : Suite.t;
-  rank : rank;
-}
-[@@deriving eq]
+module Card = struct
+  type t = {
+    suite : Suite.t;
+    rank : rank;
+  }
+  [@@deriving eq]
 
-let show_card (card : card) : string =
-  Printf.sprintf "%s of %s" (show_rank card.rank) (Suite.show card.suite)
+  let show (card : t) : string =
+    Printf.sprintf "%s of %s" (show_rank card.rank) (Suite.show card.suite)
 
-let pp_card ppf (card : card) =
-  Format.fprintf ppf "%s of %s" (show_rank card.rank) (Suite.show card.suite);
-  ()
+  let pp ppf (card : t) =
+    Format.fprintf ppf "%s of %s" (show_rank card.rank) (Suite.show card.suite);
+    ()
+end
