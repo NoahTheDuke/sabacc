@@ -6,9 +6,10 @@ open Sabacc.Game
 
 let () =
   let options =
-    { players = [ "noah"; "may"; "lavender"; "asterius" ]; starting_chips = 6 } in
+    { players = [ "noah"; "may"; "lavender"; "asterius" ]; starting_chips = 6 }
+  in
   let game = Game.create options in
-  game.running <- true;
+  let game = { game with running = true } in
   Game.game_loop game
 
 (*let game = game |> Game.handle_action { a_type = Draw (Red, Deck); player = "noah" }*)

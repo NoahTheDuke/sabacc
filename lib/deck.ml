@@ -7,16 +7,7 @@ open Location
 open Rank
 open Suite
 
-let knuth_shuffle a =
-  let n = Array.length a in
-  let a = Array.copy a in
-  for i = n - 1 downto 1 do
-    let k = Random.int (i + 1) in
-    let x = a.(k) in
-    a.(k) <- a.(i);
-    a.(i) <- x
-  done;
-  a
+let () = Random.self_init ()
 
 module Deck = struct
   type t = {
@@ -28,7 +19,6 @@ module Deck = struct
 
   let create (suite : Suite.t) : t =
     let deck : Card.t array =
-      knuth_shuffle
         [|
           { suite; Card.rank = One };
           { suite; Card.rank = One };
@@ -54,6 +44,7 @@ module Deck = struct
           { suite; Card.rank = Sylop };
         |]
     in
+    Array.shuffle ~rand:Random.int deck;
     let discard = deck.(0) in
     { suite; deck_pile = deck |> Array.to_list |> List.tl; discard_pile = [ discard ] }
 

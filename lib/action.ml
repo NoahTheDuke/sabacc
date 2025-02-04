@@ -11,6 +11,12 @@ type choose_location =
   | Hand
 [@@deriving show]
 
+let choose_location_equal l1 l2 =
+  match (l1, l2) with
+  | Drawn, Drawn -> true
+  | Hand, Hand -> true
+  | _ -> false
+
 type 'variant action_type =
   | Draw : Suite.t * Location.t -> [> `Draw ] action_type
   | ChooseDrawn : choose_location -> [> `ChooseDrawn ] action_type

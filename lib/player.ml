@@ -11,6 +11,12 @@ module Player = struct
     | Standing
   [@@deriving show, eq]
 
+  type state =
+    | Waiting
+    | Action
+    | Decision
+  [@@deriving show, eq]
+
   type t = {
     name : string;
     drawn : Card.t option;
@@ -18,11 +24,22 @@ module Player = struct
     chips : int;
     invested_chips : int;
     status : status;
+    took_turn : bool;
+    state : state;
   }
   [@@deriving show, eq]
 
   let create (name : string) (hand : Hand.t) (chips : int) : t =
-    { name; drawn = None; hand; chips; invested_chips = 0; status = In }
+    {
+      name;
+      drawn = None;
+      hand;
+      chips;
+      invested_chips = 0;
+      status = In;
+      took_turn = false;
+      state = Waiting;
+    }
 end
 
 module StringMap = Map.Make (String)
@@ -65,4 +82,24 @@ module Players = struct
       |> StringMap.of_seq
     in
     { pm; turn_order }
+
+  let int_to_player (index : int) (players : t) : Player.t =
+    let name = Array.get players.turn_order index in
+    StringMap.find name players.pm
+
+  let all_took_turns (players : t) : bool =
+    StringMap.for_all (fun name (player : Player.t) -> player.took_turn) players.pm
+
+  let none_took_turns (players : t) : bool =
+    players.pm
+    |> StringMap.exists (fun name (player : Player.t) -> player.took_turn)
+    |> not
+
+  let reset (players : t) : t =
+    let pm =
+      StringMap.map
+        (fun (player : Player.t) -> { player with took_turn = false })
+        players.pm
+    in
+    { players with pm }
 end
