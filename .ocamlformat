@@ -5,3 +5,4 @@ break-cases = all
 margin = 88
 module-item-spacing = sparse
 type-decl = sparse
+exp-grouping = preserve
