@@ -4,8 +4,6 @@
   (pps ppx_deriving.show ppx_deriving.eq))
  (libraries
    ; external
-   lwt
-   lwt.unix
    pvec
    unix))
 

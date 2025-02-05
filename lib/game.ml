@@ -2,18 +2,15 @@
    License, v. 2.0. If a copy of the MPL was not distributed with this
    file, You can obtain one at https://mozilla.org/MPL/2.0/. *)
 
-(* internal *)
 open Action
 open Card
 open Deck
 open Hand
 open Location
 open Player
+open Players
 open Suite
 open Utils
-
-(* external *)
-open Lwt.Infix
 
 type new_game_options = {
   starting_chips : int;

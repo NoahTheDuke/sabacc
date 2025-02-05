@@ -5,22 +5,20 @@
 open Card
 open Suite
 
-module Hand = struct
-  type t = {
-    red : Card.t;
-    yellow : Card.t;
-  }
-  [@@deriving eq]
+type t = {
+  red : Card.t;
+  yellow : Card.t;
+}
+[@@deriving eq]
 
-  let show (hand : t) : string =
-    Printf.sprintf "%s, %s" (Card.show hand.red) (Card.show hand.yellow)
+let show (hand : t) : string =
+  Printf.sprintf "%s, %s" (Card.show hand.red) (Card.show hand.yellow)
 
-  let pp ppf (hand : t) =
-    Format.fprintf ppf "%s, %s" (Card.show hand.red) (Card.show hand.yellow);
-    ()
+let pp ppf (hand : t) =
+  Format.fprintf ppf "%s, %s" (Card.show hand.red) (Card.show hand.yellow);
+  ()
 
-  let by_suite (suite : Suite.t) (hand : t) : Card.t =
-    match suite with
-    | Red -> hand.red
-    | Yellow -> hand.yellow
-end
+let by_suite (suite : Suite.t) (hand : t) : Card.t =
+  match suite with
+  | Red -> hand.red
+  | Yellow -> hand.yellow
