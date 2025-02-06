@@ -5,7 +5,20 @@
 let time f =
   let t = Unix.gettimeofday () in
   let res = f () in
-  Printf.printf "Execution time: %f secondsn"
-                (Unix.gettimeofday () -. t);
+  Printf.printf "Execution time: %f secondsn" (Unix.gettimeofday () -. t);
   flush stdout;
   res
+
+let rec cat = function
+  | [], y -> y
+  | x :: xs, y -> x :: cat (xs, y)
+
+let rec skip = function
+  | [], _ -> []
+  | (_ :: xs as xs1), c -> if c > 0 then skip (xs, c - 1) else xs1
+
+let rec take = function
+  | [], _ -> []
+  | x :: xs, c -> if c > 0 then x :: take (xs, c - 1) else []
+
+let cycle l i = cat (skip (l, i), take (l, i))

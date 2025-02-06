@@ -30,18 +30,17 @@ let to_seq (players : t) : Player.t Seq.t =
   players |> StringMap.to_seq |> Seq.map (fun (_, v) -> v)
 
 let create (players : Player.t list) : t =
-  let players =
-    players |> List.to_seq
-    |> Seq.map (fun (p : Player.t) -> (p.name, p))
-    |> StringMap.of_seq
-  in
-  players
+  players |> List.to_seq
+  |> Seq.map (fun (p : Player.t) -> (p.name, p))
+  |> StringMap.of_seq
 
-let all_took_turns (players : t) : bool =
-  StringMap.for_all (fun name (player : Player.t) -> player.took_turn) players
+let all_took_action (players : t) : bool =
+  StringMap.for_all (fun name (player : Player.t) -> player.took_action) players
 
-let reset (players : t) : t =
+let reset_action (players : t) : t =
   let players =
-    StringMap.map (fun (player : Player.t) -> { player with took_turn = false }) players
+    StringMap.map
+      (fun (player : Player.t) -> { player with took_action = false })
+      players
   in
   players

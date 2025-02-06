@@ -37,9 +37,9 @@ let create (suite : Suite.t) : t =
       { suite; Card.rank = Six };
       { suite; Card.rank = Six };
       { suite; Card.rank = Six };
-      { suite; Card.rank = Imposter };
-      { suite; Card.rank = Imposter };
-      { suite; Card.rank = Imposter };
+      { suite; Card.rank = Imposter None };
+      { suite; Card.rank = Imposter None };
+      { suite; Card.rank = Imposter None };
       { suite; Card.rank = Sylop };
     |]
   in
@@ -70,9 +70,7 @@ let length (deck : t) = List.length deck.deck_pile
 
 let available (deck : t) : Card.t option = List.nth_opt deck.discard_pile 0
 
-let display (deck : t) =
-  let suite = Suite.show deck.suite in
-  Printf.printf "  %s deck: %i cards remaining, discard: %s" suite (length deck)
-    (match available deck with
-    | Some c -> Card.show c
-    | None -> "[Empty]")
+let discard_str (deck : t) =
+  match available deck with
+  | Some c -> Card.show c
+  | None -> Printf.sprintf "%s [Empty]" (Suite.show deck.suite)

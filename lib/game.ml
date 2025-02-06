@@ -22,7 +22,7 @@ type game_step =
   | StartOfRound
   | Action
   | Decision
-  | PassTurn
+  | CheckTurn
   | EndOfRound
   | Results
 [@@deriving show]
@@ -33,10 +33,9 @@ type t = {
   yellow_deck : Deck.t;
   starting_chips : int;
   players : Players.t;
-  turn_order : string array;
+  turn_order : string list;
   round : int;
   turn : int;
-  starting_player : int;
   current_player : int;
   step : game_step;
 }
@@ -88,26 +87,21 @@ let create (options : new_game_options) : t =
   assert (List.length options.players <= 4);
   let red_deck = Deck.create Red in
   let yellow_deck = Deck.create Yellow in
-  let game =
-    {
-      running = false;
-      red_deck;
-      yellow_deck;
-      starting_chips = options.starting_chips;
-      players = Players.create options.players;
-      turn_order =
-        options.players |> List.map (fun (p : Player.t) -> p.name) |> Array.of_list;
-      round = 0;
-      turn = 0;
-      starting_player = -1;
-      current_player = -1;
-      step = Setup;
-    }
-  in
-  game |> deal
+  {
+    running = false;
+    red_deck;
+    yellow_deck;
+    starting_chips = options.starting_chips;
+    players = Players.create options.players;
+    turn_order = options.players |> List.map (fun (p : Player.t) -> p.name);
+    round = 1;
+    turn = 1;
+    current_player = -1;
+    step = Setup;
+  }
 
 let get_current_player (game : t) : Player.t =
-  let name = Array.get game.turn_order game.current_player in
+  let name = List.nth game.turn_order game.current_player in
   StringMap.find name game.players
 
 let get_current_player_name (game : t) : string = (get_current_player game).name
@@ -147,9 +141,8 @@ let choose_drawn_action (action : [ `ChooseDrawn ] action) (game : t) : t =
   let game, player =
     match action.a_type with
     | ChooseDrawn Drawn ->
-        let existing =
-          (drawn |> fun c -> c.suite) |> fun s -> Hand.by_suite s (Option.get hand)
-        in
+        let suite = drawn.suite in
+        let existing = Hand.by_suite suite (Option.get hand) in
         let hand =
           Option.map
             (fun (h : Hand.t) ->
@@ -164,11 +157,11 @@ let choose_drawn_action (action : [ `ChooseDrawn ] action) (game : t) : t =
         let player = { player with drawn = None } in
         (discard drawn game, player)
   in
-  game |> update_player player |> set_step PassTurn
+  game |> update_player player |> set_step CheckTurn
 
 let stand_action (action : [ `Stand ] action) (game : t) : t =
   let player = get_player action.player game in
-  game |> update_player { player with status = Standing } |> set_step PassTurn
+  game |> update_player { player with status = Standing } |> set_step CheckTurn
 
 let shift_action (action : [ `Shift ] action) (game : t) : t = game
 
@@ -227,34 +220,33 @@ let show_action_type a_t (game : t) : string =
   | ChooseDrawn Drawn ->
       let player = get_current_player game in
       let drawn = Option.get player.drawn in
-      Printf.sprintf "Choose %s from discard" (Card.show drawn)
+      Printf.sprintf "Choose to keep %s" (Card.show drawn)
   | ChooseDrawn Hand ->
       let player = get_current_player game in
       let card =
         Hand.by_suite (Option.get player.drawn).suite (Option.get player.hand)
       in
-      Printf.sprintf "Choose %s from hand" (Card.show card)
+      Printf.sprintf "Choose to keep %s" (Card.show card)
   | Stand -> "Stand"
   | Shift -> "Use shift token"
 
 let display (game : t) : unit =
   let current_player_name = get_current_player_name game in
-  Printf.printf "Turn: %i, Round: %i, Current player: %s\n" game.turn game.round
+  Printf.printf "Round: %i, Turn: %i, Current player: %s\n" game.round game.turn
     current_player_name;
-  print_endline "Decks:";
-  Deck.display game.red_deck;
-  print_newline ();
-  Deck.display game.yellow_deck;
+  Printf.printf "Discards: %s, %s"
+    (Deck.discard_str game.red_deck)
+    (Deck.discard_str game.yellow_deck);
   print_newline ();
   print_endline "Players:";
-  Array.iter
+  List.iter
     (fun name ->
       let player = get_player name game in
       Printf.printf "  %s - Chips: %i, Invested: %i\n" player.name player.chips
         player.invested_chips)
     game.turn_order;
   Printf.printf "Your hand (%s):" current_player_name;
-  let primary = StringMap.find (Array.get game.turn_order 0) game.players in
+  let primary = StringMap.find (List.hd game.turn_order) game.players in
   (match primary.hand with
   | Some h -> Printf.printf "  %s\n" (Hand.show h)
   | None -> ());
@@ -268,12 +260,17 @@ let display (game : t) : unit =
   print_newline ();
   flush stdout
 
-let start_of_round (game : t) : t =
-  let starting_player = succ game.starting_player mod 3 in
-  let current_player = starting_player in
+let setup_step (game : t) : t =
   let game =
-    { game with turn = 1; round = succ game.round; starting_player; current_player }
+    Seq.fold_left
+      (fun game player ->
+        update_player { player with chips = game.starting_chips } game)
+      game (Players.to_seq game.players)
   in
+  game |> deal |> set_step StartOfRound
+
+let start_of_round (game : t) : t =
+  let game = { game with turn = 1; current_player = 0 } in
   let name = get_current_player_name game in
   Printf.printf "New round: %i\n Starting player is %s, current player is %s\n"
     game.round name name;
@@ -289,38 +286,56 @@ let action_step (game : t) : t =
       print_endline "Wrong choice, try again";
       game
 
-let pass_turn_step (game : t) : t =
-  print_endline "pass_turn_step";
-  let player = { (get_current_player game) with took_turn = true } in
+let check_turn_step (game : t) : t =
+  print_endline "check_turn_step";
+  let player = { (get_current_player game) with took_action = true } in
   let next_player = succ game.current_player in
   let game = update_player player game in
   let game =
-    { game with current_player = next_player mod Array.length game.turn_order }
+    { game with current_player = next_player mod List.length game.turn_order }
   in
-  match Players.all_took_turns game.players with
-  | true ->
-      let turn = succ game.turn mod 3 in
-      let starting_player =
-        succ game.starting_player mod Array.length game.turn_order
-      in
-      let players = Players.reset game.players in
-      { game with turn; starting_player; players } |> set_step StartOfRound
-  | false -> game |> set_step Action
+  Printf.printf "all_took_turns %b\n" (Players.all_took_action game.players);
+  if Players.all_took_action game.players then
+    let new_turn = succ game.turn in
+    let players = Players.reset_action game.players in
+    let turn = if new_turn = 4 then 1 else new_turn in
+    let game = { game with turn; players } in
+    match new_turn with
+    | 4 -> game |> set_step EndOfRound
+    | _ -> game |> set_step Action
+  else game |> set_step Action
+
+let calculate_round (game : t) : t =
+  let _players_with_imposter =
+    game.players |> Players.to_seq
+    |> Seq.filter (fun player ->
+           match player.hand with
+           | Some { red = { rank = Rank.Imposter _; _ }; _ }
+           | Some { yellow = { rank = Rank.Imposter _; _ }; _ } ->
+               true
+           | Some _
+           | None ->
+               false)
+    |> Seq.fold_left (fun acc player -> player :: acc) []
+  in
+  game
 
 let end_of_round_step (game : t) : t =
-  (* reset_players_and_decks game in *)
+  Printf.printf "end_of_round_step %i\n" game.round;
+  let turn_order = cycle game.turn_order 1 in
+  let game = { game with turn_order } in
   match game.round with
   | 3 -> game |> set_step Results
   | n -> { game with round = succ n } |> set_step StartOfRound
 
 let step_game game =
   match game.step with
-  | Setup -> game |> set_step StartOfRound
+  | Setup -> game |> setup_step
   | StartOfRound -> game |> start_of_round
   | Action
   | Decision ->
       game |> action_step
-  | PassTurn -> game |> pass_turn_step
+  | CheckTurn -> game |> check_turn_step
   | EndOfRound -> game |> end_of_round_step
   | Results -> { game with running = false }
 

@@ -9,7 +9,7 @@ type t =
   | Four
   | Five
   | Six
-  | Imposter
+  | Imposter of int option
   | Sylop
 [@@deriving eq]
 
@@ -20,7 +20,11 @@ let show = function
   | Four -> "4"
   | Five -> "5"
   | Six -> "6"
-  | Imposter -> "Imposter"
+  | Imposter n ->
+      Printf.sprintf "Imposter %s"
+        (match n with
+        | Some n -> string_of_int n
+        | None -> "")
   | Sylop -> "Sylop"
 
 let pp ppf suite =
@@ -31,5 +35,5 @@ let pp ppf suite =
   | Four -> Format.fprintf ppf "%i" 4
   | Five -> Format.fprintf ppf "%i" 5
   | Six -> Format.fprintf ppf "%i" 6
-  | Imposter -> Format.fprintf ppf "%s" "Imposter"
+  | Imposter _ -> Format.fprintf ppf "%s" (show suite)
   | Sylop -> Format.fprintf ppf "%s" "Sylop"

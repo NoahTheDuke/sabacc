@@ -23,7 +23,7 @@ type t = {
   chips : int;
   invested_chips : int;
   status : status;
-  took_turn : bool;
+  took_action : bool;
   state : state;
 }
 [@@deriving show, eq]
@@ -36,6 +36,6 @@ let create (name : string) : t =
     chips = 0;
     invested_chips = 0;
     status = In;
-    took_turn = false;
+    took_action = false;
     state = Waiting;
   }

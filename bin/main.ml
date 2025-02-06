@@ -5,10 +5,9 @@
 open Sabacc
 
 let () =
-  let options: Game.new_game_options =
+  let options : Game.new_game_options =
     {
-      players =
-        [ "noah"; "may"; "lavender"; "asterius" ] |> List.map Game.create_player;
+      players = [ "noah"; "may"; "lavender"; "asterius" ] |> List.map Game.create_player;
       starting_chips = 6;
     }
   in

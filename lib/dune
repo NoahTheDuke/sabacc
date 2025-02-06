@@ -3,9 +3,9 @@
  (preprocess
   (pps ppx_deriving.show ppx_deriving.eq))
  (libraries
-   ; external
-   pvec
-   unix))
+  ; external
+  pvec
+  unix))
 
 (env
  (dev
