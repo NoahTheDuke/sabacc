@@ -13,6 +13,16 @@ type t = {
 
 let create (suite : Suite.t) (rank : Rank.t) : t = { rank; suite }
 
+let is_red (card : t) : bool =
+  match card.suite with
+  | Red -> true
+  | _ -> false
+
+let is_yellow (card : t) : bool =
+  match card.suite with
+  | Yellow -> true
+  | _ -> false
+
 let show (card : t) : string =
   Printf.sprintf "%s of %s" (Rank.show card.rank) (Suite.show card.suite)
 

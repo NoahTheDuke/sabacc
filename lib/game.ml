@@ -333,20 +333,21 @@ let calculate_hand (hand : Hand.t) =
   | Value n1, Imposter (Some n2)
   | Imposter (Some n1), Value n2
   | Imposter (Some n1), Imposter (Some n2) ->
-      if n1 = n2 then PairSabacc n1 else Other (if n1 > n2 then n1 - n2 else n2 - n1)
+      if n1 = n2 then PairSabacc n1 else Other (abs (n1 - n2))
   (* Imposter None, shouldn't be possible *)
   | _, _ -> raise (Failure "calculate_hand received Imposter None")
 
 let compare_hands (player1 : Player.t) (player2 : Player.t) : int =
   match ((Option.get player1.hand).value, (Option.get player2.hand).value) with
-  | Some v1, Some v2 -> (
-      match (v1, v2) with
-      | PureSabacc, _ -> 1
-      | _, PureSabacc -> -1
-      | PairSabacc n1, PairSabacc n2 -> n1 - n2
-      | PairSabacc n1, Other n2 -> 1
-      | Other n1, PairSabacc n2 -> -1
-      | Other n1, Other n2 -> n1 - n2)
+  | Some v1, Some v2 ->
+      Int.neg
+        (match (v1, v2) with
+        | PureSabacc, _ -> 1
+        | _, PureSabacc -> -1
+        | PairSabacc n1, PairSabacc n2 -> n2 - n1
+        | PairSabacc n1, Other n2 -> 1
+        | Other n1, PairSabacc n2 -> -1
+        | Other n1, Other n2 -> n2 - n1)
   | _, _ -> raise (Failure "compare_hands received a None hand.value")
 
 let calculate_round (game : t) : t =

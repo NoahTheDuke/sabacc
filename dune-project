@@ -20,12 +20,13 @@
  (synopsis "A short synopsis")
  (description "A longer description")
  (depends
-   ocaml
-   pvec
-   ppx_deriving
-   (alcotest :with-test)
-   (testo :with-test)
-   (ocaml-lsp-server :with-dev-setup)
-   (ocamlformat :with-dev-setup))
+   (ocaml (= 5.3.0))
+   (pvec (= 0.1.1))
+   (ppx_deriving (= 6.0.3))
+   (range (= 0.8.3))
+   (alcotest (and :with-test (= 1.8.0)))
+   (testo (and :with-test (= 0.1.0)))
+   (ocaml-lsp-server (and :dev (= 1.22.0)))
+   (ocamlformat (and :dev (= 0.27.0))))
  (tags
   ("add topics" "to describe" your project)))

@@ -11,13 +11,14 @@ doc: "https://url/to/documentation"
 bug-reports: "https://github.com/noahtheduke/sabacc/issues"
 depends: [
   "dune" {>= "3.16"}
-  "ocaml"
-  "pvec"
-  "ppx_deriving"
-  "alcotest" {with-test}
-  "testo" {with-test}
-  "ocaml-lsp-server" {with-dev-setup}
-  "ocamlformat" {with-dev-setup}
+  "ocaml" {= "5.3.0"}
+  "pvec" {= "0.1.1"}
+  "ppx_deriving" {= "6.0.3"}
+  "range" {= "0.8.3"}
+  "alcotest" {with-test & = "1.8.0"}
+  "testo" {with-test & = "0.1.0"}
+  "ocaml-lsp-server" {dev & = "1.22.0"}
+  "ocamlformat" {dev & = "0.27.0"}
   "odoc" {with-doc}
 ]
 build: [

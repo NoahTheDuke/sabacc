@@ -1,3 +1,0 @@
-(test
- (name sabacc_test)
- (libraries sabacc alcotest testo))

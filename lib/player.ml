@@ -41,3 +41,7 @@ let create (name : string) : t =
     state = Waiting;
     place = 1;
   }
+
+let create_with_hand (name : string) (hand : Hand.t) : t =
+  let player = create name in
+  { player with hand = Some hand }

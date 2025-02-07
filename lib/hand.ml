@@ -18,7 +18,13 @@ type t = {
 }
 [@@deriving eq]
 
-let create (red : Card.t) (yellow : Card.t) : t = { red; yellow; value = None }
+let create (red : Card.t) (yellow : Card.t) : t =
+  assert (Card.is_red red);
+  assert (Card.is_yellow yellow);
+  { red; yellow; value = None }
+
+let of_pairs (red : Suite.t * Rank.t) (yellow : Suite.t * Rank.t) : t =
+  create (Card.create (fst red) (snd red)) (Card.create (fst yellow) (snd yellow))
 
 let show (hand : t) : string =
   Printf.sprintf "%s, %s" (Card.show hand.red) (Card.show hand.yellow)

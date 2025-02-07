@@ -1,0 +1,9 @@
+(tests
+ (names sabacc_test)
+ (modules sabacc_test game_test helpers)
+ (libraries sabacc alcotest testo))
+
+(env
+ (dev
+  (flags
+   (:standard -w -27 -w -32 -w -33 -w -34 -w -37 -w -69))))

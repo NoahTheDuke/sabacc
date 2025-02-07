@@ -4,6 +4,7 @@
   (pps ppx_deriving.show ppx_deriving.eq))
  (libraries
   ; external
+  range
   pvec
   unix))
 
