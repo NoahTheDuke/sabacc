@@ -25,6 +25,7 @@ type t = {
   status : status;
   took_action : bool;
   state : state;
+  place : int;
 }
 [@@deriving show, eq]
 
@@ -38,4 +39,5 @@ let create (name : string) : t =
     status = In;
     took_action = false;
     state = Waiting;
+    place = 1;
   }

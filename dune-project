@@ -19,6 +19,13 @@
  (name sabacc)
  (synopsis "A short synopsis")
  (description "A longer description")
- (depends ocaml pvec)
+ (depends
+   ocaml
+   pvec
+   ppx_deriving
+   (alcotest :with-test)
+   (testo :with-test)
+   (ocaml-lsp-server :with-dev-setup)
+   (ocamlformat :with-dev-setup))
  (tags
   ("add topics" "to describe" your project)))

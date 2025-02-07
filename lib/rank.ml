@@ -3,37 +3,27 @@
    file, You can obtain one at https://mozilla.org/MPL/2.0/. *)
 
 type t =
-  | One
-  | Two
-  | Three
-  | Four
-  | Five
-  | Six
+  | Value of int
   | Imposter of int option
   | Sylop
 [@@deriving eq]
 
 let show = function
-  | One -> "1"
-  | Two -> "2"
-  | Three -> "3"
-  | Four -> "4"
-  | Five -> "5"
-  | Six -> "6"
+  | Value n -> Printf.sprintf "%i" n
   | Imposter n ->
-      Printf.sprintf "Imposter %s"
+      Printf.sprintf "Imposter%s"
         (match n with
-        | Some n -> string_of_int n
+        | Some n -> Printf.sprintf " %i" n
         | None -> "")
   | Sylop -> "Sylop"
 
-let pp ppf suite =
-  match suite with
-  | One -> Format.fprintf ppf "%i" 1
-  | Two -> Format.fprintf ppf "%i" 2
-  | Three -> Format.fprintf ppf "%i" 3
-  | Four -> Format.fprintf ppf "%i" 4
-  | Five -> Format.fprintf ppf "%i" 5
-  | Six -> Format.fprintf ppf "%i" 6
-  | Imposter _ -> Format.fprintf ppf "%s" (show suite)
+let pp ppf rank =
+  match rank with
+  | Value n -> Format.fprintf ppf "%i" n
+  | Imposter _ -> Format.fprintf ppf "%s" (show rank)
   | Sylop -> Format.fprintf ppf "%s" "Sylop"
+
+let imposter_of_int (n : int) : t =
+  assert (n > 0);
+  assert (n < 7);
+  Imposter (Some n)

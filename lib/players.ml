@@ -7,9 +7,9 @@ open Hand
 open Player
 module StringMap = Map.Make (String)
 
-type player_map = Player.t StringMap.t
+type player_map = Player.t StringMap.t [@@deriving eq]
 
-type t = player_map
+type t = player_map [@@deriving eq]
 
 let pp ppf (players : t) =
   Format.pp_print_string ppf "{";
@@ -28,6 +28,9 @@ let show (players : t) =
 
 let to_seq (players : t) : Player.t Seq.t =
   players |> StringMap.to_seq |> Seq.map (fun (_, v) -> v)
+
+let to_list (players : t) : Player.t list =
+  players |> StringMap.to_list |> List.map (fun (_, v) -> v)
 
 let create (players : Player.t list) : t =
   players |> List.to_seq

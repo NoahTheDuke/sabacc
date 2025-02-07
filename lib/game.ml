@@ -38,6 +38,7 @@ type t = {
   turn : int;
   current_player : int;
   step : game_step;
+  winner : string option;
 }
 [@@deriving show]
 
@@ -74,7 +75,10 @@ let deal (game : t) : t =
         let red_deck, red_card = Deck.draw Deck red_deck in
         let yellow_deck, yellow_card = Deck.draw Deck yellow_deck in
         let player =
-          { player with hand = Some { red = red_card; yellow = yellow_card } }
+          {
+            player with
+            hand = Some { red = red_card; yellow = yellow_card; value = None };
+          }
         in
         (red_deck, yellow_deck, players @ [ player ]))
       (game.red_deck, game.yellow_deck, [])
@@ -98,6 +102,7 @@ let create (options : new_game_options) : t =
     turn = 1;
     current_player = -1;
     step = Setup;
+    winner = None;
   }
 
 let get_current_player (game : t) : Player.t =
@@ -231,6 +236,7 @@ let show_action_type a_t (game : t) : string =
   | Shift -> "Use shift token"
 
 let display (game : t) : unit =
+  print_newline ();
   let current_player_name = get_current_player_name game in
   Printf.printf "Round: %i, Turn: %i, Current player: %s\n" game.round game.turn
     current_player_name;
@@ -287,14 +293,12 @@ let action_step (game : t) : t =
       game
 
 let check_turn_step (game : t) : t =
-  print_endline "check_turn_step";
   let player = { (get_current_player game) with took_action = true } in
   let next_player = succ game.current_player in
   let game = update_player player game in
   let game =
     { game with current_player = next_player mod List.length game.turn_order }
   in
-  Printf.printf "all_took_turns %b\n" (Players.all_took_action game.players);
   if Players.all_took_action game.players then
     let new_turn = succ game.turn in
     let players = Players.reset_action game.players in
@@ -305,25 +309,101 @@ let check_turn_step (game : t) : t =
     | _ -> game |> set_step Action
   else game |> set_step Action
 
+let roll_imposter (card : Card.t) : Card.t =
+  match card.rank with
+  | Imposter None ->
+      let val1 = Random.int_in_range ~min:1 ~max:6 in
+      let val2 = Random.int_in_range ~min:1 ~max:6 in
+      let new_val = if val1 < val2 then val1 else val2 in
+      { card with rank = Rank.imposter_of_int new_val }
+  | _ -> card
+
+let calculate_hand (hand : Hand.t) =
+  match (hand.red.rank, hand.yellow.rank) with
+  (* pure sabacc: two sylops *)
+  | Sylop, Sylop -> PureSabacc
+  (* regular sabacc: a pair or a pair with imposter or a pair with sylop *)
+  | Sylop, Value n
+  | Value n, Sylop
+  | Sylop, Imposter (Some n)
+  | Imposter (Some n), Sylop ->
+      PairSabacc n
+  (* non-sabacc: two cards *)
+  | Value n1, Value n2
+  | Value n1, Imposter (Some n2)
+  | Imposter (Some n1), Value n2
+  | Imposter (Some n1), Imposter (Some n2) ->
+      if n1 = n2 then PairSabacc n1 else Other (if n1 > n2 then n1 - n2 else n2 - n1)
+  (* Imposter None, shouldn't be possible *)
+  | _, _ -> raise (Failure "calculate_hand received Imposter None")
+
+let compare_hands (player1 : Player.t) (player2 : Player.t) : int =
+  match ((Option.get player1.hand).value, (Option.get player2.hand).value) with
+  | Some v1, Some v2 -> (
+      match (v1, v2) with
+      | PureSabacc, _ -> 1
+      | _, PureSabacc -> -1
+      | PairSabacc n1, PairSabacc n2 -> n1 - n2
+      | PairSabacc n1, Other n2 -> 1
+      | Other n1, PairSabacc n2 -> -1
+      | Other n1, Other n2 -> n1 - n2)
+  | _, _ -> raise (Failure "compare_hands received a None hand.value")
+
 let calculate_round (game : t) : t =
-  let _players_with_imposter =
+  (* update player hands with imposter values and hand values *)
+  let game =
     game.players |> Players.to_seq
-    |> Seq.filter (fun player ->
-           match player.hand with
-           | Some { red = { rank = Rank.Imposter _; _ }; _ }
-           | Some { yellow = { rank = Rank.Imposter _; _ }; _ } ->
-               true
-           | Some _
-           | None ->
-               false)
-    |> Seq.fold_left (fun acc player -> player :: acc) []
+    |> Seq.fold_left
+         (fun game player ->
+           let hand = Option.get player.hand in
+           (* roll for each imposter *)
+           let hand =
+             {
+               hand with
+               red = roll_imposter hand.red;
+               yellow = roll_imposter hand.yellow;
+             }
+           in
+           (* then calculate the hand's value *)
+           let hand = Some { hand with value = Some (calculate_hand hand) } in
+           let player = { player with hand } in
+           update_player player game)
+         game
   in
+  (* determine everyone's place by sorting per hand value *)
+  let game =
+    game.players |> Players.to_list
+    |> List.stable_sort compare_hands
+    |> List.mapi (fun index player -> (index + 1, player))
+    |> List.fold_left
+         (fun game (index, player) -> update_player { player with place = index } game)
+         game
+  in
+  (* find the only player with place 1 *)
+  let winner_name, winner =
+    StringMap.find_first
+      (fun player_name ->
+        let player = get_player player_name game in
+        player.place = 1)
+      game.players
+  in
+  let game = { game with winner = Some winner_name } in
   game
 
 let end_of_round_step (game : t) : t =
-  Printf.printf "end_of_round_step %i\n" game.round;
   let turn_order = cycle game.turn_order 1 in
   let game = { game with turn_order } in
+  let game = calculate_round game in
+  print_endline "\nRound hands:";
+  game.players |> Players.to_list
+  |> List.stable_sort (fun p1 p2 -> p1.place - p2.place)
+  |> List.iter (fun player ->
+         Printf.printf " %i) %s: %s\n" player.place player.name
+           (player.hand |> Option.get |> Hand.show));
+  print_newline ();
+  Printf.printf "Round winner: %s" (Option.value game.winner ~default:"No winner");
+  print_newline ();
+  print_newline ();
   match game.round with
   | 3 -> game |> set_step Results
   | n -> { game with round = succ n } |> set_step StartOfRound

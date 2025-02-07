@@ -11,6 +11,8 @@ type t = {
 }
 [@@deriving eq]
 
+let create (suite : Suite.t) (rank : Rank.t) : t = { rank; suite }
+
 let show (card : t) : string =
   Printf.sprintf "%s of %s" (Rank.show card.rank) (Suite.show card.suite)
 

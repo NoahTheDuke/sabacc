@@ -5,11 +5,20 @@
 open Card
 open Suite
 
+type hand_value =
+  | PureSabacc
+  | PairSabacc of int
+  | Other of int
+[@@deriving eq, show]
+
 type t = {
   red : Card.t;
   yellow : Card.t;
+  value : hand_value option;
 }
 [@@deriving eq]
+
+let create (red : Card.t) (yellow : Card.t) : t = { red; yellow; value = None }
 
 let show (hand : t) : string =
   Printf.sprintf "%s, %s" (Card.show hand.red) (Card.show hand.yellow)

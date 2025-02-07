@@ -13,6 +13,11 @@ depends: [
   "dune" {>= "3.16"}
   "ocaml"
   "pvec"
+  "ppx_deriving"
+  "alcotest" {with-test}
+  "testo" {with-test}
+  "ocaml-lsp-server" {with-dev-setup}
+  "ocamlformat" {with-dev-setup}
   "odoc" {with-doc}
 ]
 build: [
