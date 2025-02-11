@@ -29,19 +29,20 @@ type t = {
 }
 [@@deriving show, eq]
 
-let create (name : string) : t =
-  {
-    name;
-    drawn = None;
-    hand = None;
-    chips = 0;
-    invested_chips = 0;
-    status = In;
-    took_action = false;
-    state = Waiting;
-    place = 1;
-  }
+let setinel = Hand.of_pair (Value 0) (Value 0)
 
-let create_with_hand (name : string) (hand : Hand.t) : t =
-  let player = create name in
-  { player with hand = Some hand }
+let create ?(hand = setinel) (name : string) : t =
+  let player =
+    {
+      name;
+      drawn = None;
+      hand = None;
+      chips = 0;
+      invested_chips = 0;
+      status = In;
+      took_action = false;
+      state = Waiting;
+      place = 1;
+    }
+  in
+  if Hand.equal hand setinel then player else { player with hand = Some hand }

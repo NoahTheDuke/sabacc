@@ -22,3 +22,15 @@ let rec take = function
   | x :: xs, c -> if c > 0 then x :: take (xs, c - 1) else []
 
 let cycle l i = cat (skip (l, i), take (l, i))
+
+let group_by (f : 'a -> 'b) (ll : 'a list) : ('b, 'a list) Hashtbl.t =
+  List.fold_left
+    (fun acc e ->
+      let grp = f e in
+      let grp_mems =
+        try Hashtbl.find acc grp with
+        | Not_found -> []
+      in
+      Hashtbl.replace acc grp (e :: grp_mems);
+      acc)
+    (Hashtbl.create 100) ll

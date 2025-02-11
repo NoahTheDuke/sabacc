@@ -23,7 +23,7 @@ let pp ppf rank =
   | Imposter _ -> Format.fprintf ppf "%s" (show rank)
   | Sylop -> Format.fprintf ppf "%s" "Sylop"
 
-let imposter_of_int (n : int) : t =
+let imp_of_int (n : int) : t =
   assert (n > 0);
   assert (n < 7);
   Imposter (Some n)

@@ -38,7 +38,7 @@ type t = {
   turn : int;
   current_player : int;
   step : game_step;
-  winner : string option;
+  winners : string list option;
 }
 [@@deriving show]
 
@@ -102,7 +102,7 @@ let create (options : new_game_options) : t =
     turn = 1;
     current_player = -1;
     step = Setup;
-    winner = None;
+    winners = None;
   }
 
 let get_current_player (game : t) : Player.t =
@@ -252,7 +252,7 @@ let display (game : t) : unit =
         player.invested_chips)
     game.turn_order;
   Printf.printf "Your hand (%s):" current_player_name;
-  let primary = StringMap.find (List.hd game.turn_order) game.players in
+  let primary = StringMap.find current_player_name game.players in
   (match primary.hand with
   | Some h -> Printf.printf "  %s\n" (Hand.show h)
   | None -> ());
@@ -309,13 +309,15 @@ let check_turn_step (game : t) : t =
     | _ -> game |> set_step Action
   else game |> set_step Action
 
+(** [roll_imposter card] will change card's rank to [Imposter (Some n)] if it's
+    [Imposter None], and otherwise will return the card unchanged. *)
 let roll_imposter (card : Card.t) : Card.t =
   match card.rank with
   | Imposter None ->
       let val1 = Random.int_in_range ~min:1 ~max:6 in
       let val2 = Random.int_in_range ~min:1 ~max:6 in
       let new_val = if val1 < val2 then val1 else val2 in
-      { card with rank = Rank.imposter_of_int new_val }
+      { card with rank = Rank.imp_of_int new_val }
   | _ -> card
 
 let calculate_hand (hand : Hand.t) =
@@ -337,8 +339,8 @@ let calculate_hand (hand : Hand.t) =
   (* Imposter None, shouldn't be possible *)
   | _, _ -> raise (Failure "calculate_hand received Imposter None")
 
-let compare_hands (player1 : Player.t) (player2 : Player.t) : int =
-  match ((Option.get player1.hand).value, (Option.get player2.hand).value) with
+let compare_hands hand1 hand2 : int =
+  match (hand1, hand2) with
   | Some v1, Some v2 ->
       Int.neg
         (match (v1, v2) with
@@ -372,24 +374,36 @@ let calculate_round (game : t) : t =
          game
   in
   (* determine everyone's place by sorting per hand value *)
-  let game =
+  let players_by_hand =
     game.players |> Players.to_list
+    |> group_by (fun player -> (Option.get player.hand).value)
+  in
+  let game =
+    players_by_hand |> Hashtbl.to_seq_keys |> List.of_seq
     |> List.stable_sort compare_hands
-    |> List.mapi (fun index player -> (index + 1, player))
+    |> List.mapi (fun index hand_value -> (index + 1, hand_value))
     |> List.fold_left
-         (fun game (index, player) -> update_player { player with place = index } game)
+         (fun game (index, hand_value) ->
+           let players = Hashtbl.find players_by_hand hand_value in
+           List.fold_left
+             (fun game player -> update_player { player with place = index } game)
+             game players)
          game
   in
   (* find the only player with place 1 *)
-  let winner_name, winner =
-    StringMap.find_first
-      (fun player_name ->
-        let player = get_player player_name game in
-        player.place = 1)
-      game.players
+  let winners =
+    StringMap.filter (fun _ player -> player.place = 1) game.players
+    |> StringMap.to_list
+    |> List.map (fun (_, player) -> player.name)
   in
-  let game = { game with winner = Some winner_name } in
+  let game = { game with winners = Some winners } in
   game
+
+let update_chips (game : t) : t =
+  List.fold_left
+    (fun game player -> update_player { player with chips = game.starting_chips } game)
+    game
+    (Players.to_list game.players)
 
 let end_of_round_step (game : t) : t =
   let turn_order = cycle game.turn_order 1 in
@@ -402,7 +416,12 @@ let end_of_round_step (game : t) : t =
          Printf.printf " %i) %s: %s\n" player.place player.name
            (player.hand |> Option.get |> Hand.show));
   print_newline ();
-  Printf.printf "Round winner: %s" (Option.value game.winner ~default:"No winner");
+  Printf.printf "Round winner: %s"
+    (game.winners |> Option.value ~default:[ "No winner" ] |> String.concat ", ");
+  print_newline ();
+  print_newline ();
+  print_endline "Press any key to continue to next round.";
+  let _ = read_line () in
   print_newline ();
   print_newline ();
   match game.round with
