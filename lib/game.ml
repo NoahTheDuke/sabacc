@@ -70,19 +70,20 @@ type redeal = {
 
 let deal (game : t) : t =
   let red_deck, yellow_deck, players =
-    Seq.fold_left
+    List.fold_left
       (fun (red_deck, yellow_deck, players) (player : Player.t) ->
         let red_deck, red_card = Deck.draw Deck red_deck in
         let yellow_deck, yellow_card = Deck.draw Deck yellow_deck in
         let player =
           {
             player with
+            place = 0;
             hand = Some { red = red_card; yellow = yellow_card; value = None };
           }
         in
         (red_deck, yellow_deck, players @ [ player ]))
       (game.red_deck, game.yellow_deck, [])
-      (Players.to_seq game.players)
+      (Players.to_list game.players)
   in
   { game with red_deck; yellow_deck; players = Players.create players }
 
@@ -392,9 +393,10 @@ let calculate_round (game : t) : t =
   in
   (* find the only player with place 1 *)
   let winners =
-    StringMap.filter (fun _ player -> player.place = 1) game.players
+    game.players
+    |> StringMap.filter (fun _ player -> player.place = 1)
     |> StringMap.to_list
-    |> List.map (fun (_, player) -> player.name)
+    |> List.map (fun (player_name, _) -> player_name)
   in
   let game = { game with winners = Some winners } in
   game
@@ -405,10 +407,46 @@ let update_chips (game : t) : t =
     game
     (Players.to_list game.players)
 
+(** [tax_hand player] returns player with chips and invested_chips as such:
+
+    * if round winner (place = 1), get invested chips back. if a pair sabacc (losing
+    sabacc hand), taxed 1 chip. if non-sabacc hand, taxed diff of hand (Other). *)
+let tax_hand (player : Player.t) : Player.t =
+  match player.place with
+  | 1 ->
+      Printf.printf "%s gets %i invested chips back into their stock.\n" player.name
+        player.invested_chips;
+      { player with chips = player.chips + player.invested_chips; invested_chips = 0 }
+  | _ -> (
+      match Option.get (Option.get player.hand).value with
+      | PairSabacc _
+      | Other 1 ->
+          Printf.printf "%s is taxed 1 chip.\n" player.name;
+          {
+            player with
+            chips = player.chips - 1;
+            invested_chips = player.invested_chips + 1;
+          }
+      | Other n ->
+          Printf.printf "%s is taxed %i chips.\n" player.name n;
+          {
+            player with
+            chips = player.chips - n;
+            invested_chips = player.invested_chips + n;
+          }
+      | _ -> player)
+
+let take_invested_chips (game : t) : t =
+  game.players |> Players.to_list
+  |> List.fold_left
+       (fun game player ->
+         let player = tax_hand player in
+         Printf.printf "%s loses %i invested chips.\n" player.name player.invested_chips;
+         game |> update_player { player with invested_chips = 0 })
+       game
+
 let end_of_round_step (game : t) : t =
-  let turn_order = cycle game.turn_order 1 in
-  let game = { game with turn_order } in
-  let game = calculate_round game in
+  let game = game |> calculate_round in
   print_endline "\nRound hands:";
   game.players |> Players.to_list
   |> List.stable_sort (fun p1 p2 -> p1.place - p2.place)
@@ -420,10 +458,13 @@ let end_of_round_step (game : t) : t =
     (game.winners |> Option.value ~default:[ "No winner" ] |> String.concat ", ");
   print_newline ();
   print_newline ();
+  let game = game |> take_invested_chips in
   print_endline "Press any key to continue to next round.";
   let _ = read_line () in
   print_newline ();
   print_newline ();
+  let turn_order = cycle game.turn_order 1 in
+  let game = { game with turn_order } |> deal in
   match game.round with
   | 3 -> game |> set_step Results
   | n -> { game with round = succ n } |> set_step StartOfRound
