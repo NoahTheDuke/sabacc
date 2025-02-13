@@ -2,11 +2,6 @@
    License, v. 2.0. If a copy of the MPL was not distributed with this
    file, You can obtain one at https://mozilla.org/MPL/2.0/. *)
 
-open Card
-open Location
-open Rank
-open Suite
-
 let () = Random.self_init ()
 
 type t = {

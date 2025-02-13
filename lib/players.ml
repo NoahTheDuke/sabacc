@@ -2,8 +2,6 @@
    License, v. 2.0. If a copy of the MPL was not distributed with this
    file, You can obtain one at https://mozilla.org/MPL/2.0/. *)
 
-open Card
-open Hand
 open Player
 module StringMap = Map.Make (String)
 
@@ -27,10 +25,18 @@ let show (players : t) =
   ^ "|]}"
 
 let to_seq (players : t) : Player.t Seq.t =
-  players |> StringMap.to_seq |> Seq.map (fun (_, v) -> v)
+  players |> StringMap.to_seq |> Seq.map (fun (_, player) -> player)
+
+let active_to_seq (players : t) : Player.t Seq.t =
+  players |> StringMap.to_seq
+  |> Seq.filter_map (fun (_, player) -> if player.active then Some player else None)
 
 let to_list (players : t) : Player.t list =
-  players |> StringMap.to_list |> List.map (fun (_, v) -> v)
+  players |> StringMap.to_list |> List.map (fun (_, player) -> player)
+
+let active_to_list (players : t) : Player.t list =
+  players |> StringMap.to_list
+  |> List.filter_map (fun (_, player) -> if player.active then Some player else None)
 
 let create (players : Player.t list) : t =
   players |> List.to_seq
@@ -38,12 +44,15 @@ let create (players : Player.t list) : t =
   |> StringMap.of_seq
 
 let all_took_action (players : t) : bool =
-  StringMap.for_all (fun name (player : Player.t) -> player.took_action) players
+  players |> active_to_list |> List.for_all (fun player -> player.took_action)
 
 let reset_action (players : t) : t =
-  let players =
-    StringMap.map
-      (fun (player : Player.t) -> { player with took_action = false })
-      players
-  in
-  players
+  StringMap.map (fun player -> { player with took_action = false }) players
+
+let set_active (players : t) : t =
+  StringMap.map
+    (fun player ->
+      match player.chips with
+      | 0 -> { player with active = false }
+      | _ -> player)
+    players

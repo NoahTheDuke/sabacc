@@ -2,9 +2,6 @@
    License, v. 2.0. If a copy of the MPL was not distributed with this
    file, You can obtain one at https://mozilla.org/MPL/2.0/. *)
 
-open Card
-open Hand
-
 type status =
   | In
   | Standing
@@ -26,23 +23,25 @@ type t = {
   took_action : bool;
   state : state;
   place : int;
+  active : bool;
 }
 [@@deriving show, eq]
 
 let setinel = Hand.of_pair (Value 0) (Value 0)
 
-let create ?(hand = setinel) (name : string) : t =
+let create ?(hand = setinel) ?(chips = 0) (name : string) : t =
   let player =
     {
       name;
       drawn = None;
       hand = None;
-      chips = 0;
+      chips;
       invested_chips = 0;
       status = In;
       took_action = false;
       state = Waiting;
       place = 1;
+      active = true;
     }
   in
   if Hand.equal hand setinel then player else { player with hand = Some hand }

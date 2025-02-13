@@ -12,5 +12,5 @@ let () =
     }
   in
   let game = Game.create options in
-  let game = { game with running = true } in
-  Game.game_loop game
+  let _ = Game.start game in
+  exit 0

@@ -72,16 +72,19 @@ let deal (game : t) : t =
   let red_deck, yellow_deck, players =
     List.fold_left
       (fun (red_deck, yellow_deck, players) (player : Player.t) ->
-        let red_deck, red_card = Deck.draw Deck red_deck in
-        let yellow_deck, yellow_card = Deck.draw Deck yellow_deck in
-        let player =
-          {
-            player with
-            place = 0;
-            hand = Some { red = red_card; yellow = yellow_card; value = None };
-          }
-        in
-        (red_deck, yellow_deck, players @ [ player ]))
+        match player.active with
+        | true ->
+            let red_deck, red_card = Deck.draw Deck red_deck in
+            let yellow_deck, yellow_card = Deck.draw Deck yellow_deck in
+            let player =
+              {
+                player with
+                place = 0;
+                hand = Some { red = red_card; yellow = yellow_card; value = None };
+              }
+            in
+            (red_deck, yellow_deck, players @ [ player ])
+        | false -> (red_deck, yellow_deck, players @ [ player ]))
       (game.red_deck, game.yellow_deck, [])
       (Players.to_list game.players)
   in
@@ -93,7 +96,7 @@ let create (options : new_game_options) : t =
   let red_deck = Deck.create Red in
   let yellow_deck = Deck.create Yellow in
   {
-    running = false;
+    running = true;
     red_deck;
     yellow_deck;
     starting_chips = options.starting_chips;
@@ -169,7 +172,7 @@ let stand_action (action : [ `Stand ] action) (game : t) : t =
   let player = get_player action.player game in
   game |> update_player { player with status = Standing } |> set_step CheckTurn
 
-let shift_action (action : [ `Shift ] action) (game : t) : t = game
+let shift_action (_action : [ `Shift ] action) (game : t) : t = game
 
 let available_actions (game : t) =
   let current_player = get_current_player game in
@@ -222,7 +225,7 @@ let show_action_type a_t (game : t) : string =
           match c with
           | Some c -> Card.show c
           | None -> "[Empty]" )
-  | Draw (suite, location) -> Printf.sprintf "Draw from %s deck" (Suite.show suite)
+  | Draw (suite, _location) -> Printf.sprintf "Draw from %s deck" (Suite.show suite)
   | ChooseDrawn Drawn ->
       let player = get_current_player game in
       let drawn = Option.get player.drawn in
@@ -247,11 +250,13 @@ let display (game : t) : unit =
   print_newline ();
   print_endline "Players:";
   List.iter
-    (fun name ->
-      let player = get_player name game in
-      Printf.printf "  %s - Chips: %i, Invested: %i\n" player.name player.chips
-        player.invested_chips)
-    game.turn_order;
+    (fun player ->
+      match player.active with
+      | true ->
+          Printf.printf "  %s - Chips: %i, Invested: %i\n" player.name player.chips
+            player.invested_chips
+      | false -> Printf.printf "  %s - Out of the game\n" player.name)
+    (Players.to_list game.players);
   Printf.printf "Your hand (%s):" current_player_name;
   let primary = StringMap.find current_player_name game.players in
   (match primary.hand with
@@ -269,10 +274,11 @@ let display (game : t) : unit =
 
 let setup_step (game : t) : t =
   let game =
-    Seq.fold_left
+    List.fold_left
       (fun game player ->
         update_player { player with chips = game.starting_chips } game)
-      game (Players.to_seq game.players)
+      game
+      (Players.to_list game.players)
   in
   game |> deal |> set_step StartOfRound
 
@@ -295,8 +301,8 @@ let action_step (game : t) : t =
 
 let check_turn_step (game : t) : t =
   let player = { (get_current_player game) with took_action = true } in
-  let next_player = succ game.current_player in
   let game = update_player player game in
+  let next_player = succ game.current_player in
   let game =
     { game with current_player = next_player mod List.length game.turn_order }
   in
@@ -342,22 +348,21 @@ let calculate_hand (hand : Hand.t) =
 
 let compare_hands hand1 hand2 : int =
   match (hand1, hand2) with
-  | Some v1, Some v2 ->
-      Int.neg
-        (match (v1, v2) with
-        | PureSabacc, _ -> 1
-        | _, PureSabacc -> -1
-        | PairSabacc n1, PairSabacc n2 -> n2 - n1
-        | PairSabacc n1, Other n2 -> 1
-        | Other n1, PairSabacc n2 -> -1
-        | Other n1, Other n2 -> n2 - n1)
+  | Some v1, Some v2 -> (
+      match (v1, v2) with
+      | PureSabacc, _ -> -1
+      | _, PureSabacc -> 1
+      | PairSabacc n1, PairSabacc n2 -> n1 - n2
+      | PairSabacc _n1, Other _n2 -> -1
+      | Other _n1, PairSabacc _n2 -> 1
+      | Other n1, Other n2 -> n1 - n2)
   | _, _ -> raise (Failure "compare_hands received a None hand.value")
 
 let calculate_round (game : t) : t =
   (* update player hands with imposter values and hand values *)
   let game =
-    game.players |> Players.to_seq
-    |> Seq.fold_left
+    game.players |> Players.active_to_list
+    |> List.fold_left
          (fun game player ->
            let hand = Option.get player.hand in
            (* roll for each imposter *)
@@ -376,7 +381,7 @@ let calculate_round (game : t) : t =
   in
   (* determine everyone's place by sorting per hand value *)
   let players_by_hand =
-    game.players |> Players.to_list
+    game.players |> Players.active_to_list
     |> group_by (fun player -> (Option.get player.hand).value)
   in
   let game =
@@ -401,12 +406,6 @@ let calculate_round (game : t) : t =
   let game = { game with winners = Some winners } in
   game
 
-let update_chips (game : t) : t =
-  List.fold_left
-    (fun game player -> update_player { player with chips = game.starting_chips } game)
-    game
-    (Players.to_list game.players)
-
 (** [tax_hand player] returns player with chips and invested_chips as such:
 
     * if round winner (place = 1), get invested chips back. if a pair sabacc (losing
@@ -414,41 +413,41 @@ let update_chips (game : t) : t =
 let tax_hand (player : Player.t) : Player.t =
   match player.place with
   | 1 ->
-      Printf.printf "%s gets %i invested chips back into their stock.\n" player.name
-        player.invested_chips;
+      if player.invested_chips > 0 then
+        Printf.printf "%s gets %i invested chips back into their stock.\n" player.name
+          player.invested_chips;
       { player with chips = player.chips + player.invested_chips; invested_chips = 0 }
   | _ -> (
       match Option.get (Option.get player.hand).value with
-      | PairSabacc _
-      | Other 1 ->
-          Printf.printf "%s is taxed 1 chip.\n" player.name;
-          {
-            player with
-            chips = player.chips - 1;
-            invested_chips = player.invested_chips + 1;
-          }
+      | PairSabacc n
       | Other n ->
-          Printf.printf "%s is taxed %i chips.\n" player.name n;
+          let tax = if player.chips - n < 0 then player.chips else n in
+          let cs = if tax = 1 then "chip" else "chips" in
+          Printf.printf "%s is taxed %i %s.\n" player.name tax cs;
           {
             player with
-            chips = player.chips - n;
-            invested_chips = player.invested_chips + n;
+            chips = player.chips - tax;
+            invested_chips = player.invested_chips + tax;
           }
       | _ -> player)
 
-let take_invested_chips (game : t) : t =
-  game.players |> Players.to_list
+let lose_invested_chips (game : t) : t =
+  game.players |> Players.active_to_list
   |> List.fold_left
        (fun game player ->
          let player = tax_hand player in
-         Printf.printf "%s loses %i invested chips.\n" player.name player.invested_chips;
+         if player.invested_chips > 0 then
+           Printf.printf "%s loses %i invested %s.\n" player.name player.invested_chips
+             (match player.invested_chips with
+             | 1 -> "chip"
+             | _ -> "chips")
+         else Printf.printf "%s is not taxed.\n" player.name;
          game |> update_player { player with invested_chips = 0 })
        game
 
-let end_of_round_step (game : t) : t =
-  let game = game |> calculate_round in
+let print_end_of_round (game : t) : unit =
   print_endline "\nRound hands:";
-  game.players |> Players.to_list
+  game.players |> Players.active_to_list
   |> List.stable_sort (fun p1 p2 -> p1.place - p2.place)
   |> List.iter (fun player ->
          Printf.printf " %i) %s: %s\n" player.place player.name
@@ -457,17 +456,45 @@ let end_of_round_step (game : t) : t =
   Printf.printf "Round winner: %s"
     (game.winners |> Option.value ~default:[ "No winner" ] |> String.concat ", ");
   print_newline ();
-  print_newline ();
-  let game = game |> take_invested_chips in
-  print_endline "Press any key to continue to next round.";
-  let _ = read_line () in
-  print_newline ();
-  print_newline ();
-  let turn_order = cycle game.turn_order 1 in
-  let game = { game with turn_order } |> deal in
-  match game.round with
-  | 3 -> game |> set_step Results
-  | n -> { game with round = succ n } |> set_step StartOfRound
+  print_newline ()
+
+let rotate_turn_order (game : t) : t =
+  let game = { game with players = Players.set_active game.players } in
+  let turn_order =
+    game.turn_order
+    |> List.filter_map (fun player_name ->
+           let player = get_player player_name game in
+           match player.active with
+           | true -> Some player.name
+           | false -> None)
+    |> fun t_o -> cycle t_o 1
+  in
+  { game with turn_order }
+
+let end_of_round_step (game : t) : t =
+  let game = game |> calculate_round in
+  print_end_of_round game;
+  let game = game |> lose_invested_chips in
+  let () =
+    print_newline ();
+    print_endline "Press any key to continue to next round.";
+    let _ = read_line () in
+    print_newline ();
+    print_newline ()
+  in
+  let game = game |> rotate_turn_order |> deal in
+  match Players.active_to_list game.players with
+  | [] ->
+      print_endline "No one wins! fuck you!";
+      raise (Failure "all done")
+  | [ player ] -> { game with winners = Some [ player.name ] } |> set_step Results
+  | _ -> { game with round = succ game.round } |> set_step StartOfRound
+
+let results_step (game : t) : t =
+  Printf.printf "%s has won the game! congrats!\n"
+    (game.winners |> Option.get |> List.hd);
+  let game = { game with running = false } in
+  game
 
 let step_game game =
   match game.step with
@@ -478,7 +505,7 @@ let step_game game =
       game |> action_step
   | CheckTurn -> game |> check_turn_step
   | EndOfRound -> game |> end_of_round_step
-  | Results -> { game with running = false }
+  | Results -> game |> results_step
 
 let rec game_loop (game : t) =
   if game.running then (
@@ -488,3 +515,6 @@ let rec game_loop (game : t) =
     | Decision -> display game
     | _ -> ());
     game_loop game)
+  else game
+
+let start (game : t) = game_loop game
